@@ -123,27 +123,35 @@
       profileSelect.addEventListener('change', applyFilter);
       applyFilter();
     }
+    const chartInstances = {};
 
     // 🔹 Helper: Render Chart
-    function renderChart(canvasId, type, label, dataMap) {
-      const ctx = document.getElementById(canvasId).getContext('2d');
-      if (window[canvasId]) window[canvasId].destroy(); // destroy existing
-      window[canvasId] = new Chart(ctx, {
-        type,
-        data: {
-          labels: Object.keys(dataMap),
-          datasets: [{
-            label,
-            data: Object.values(dataMap),
-            backgroundColor: 'rgba(47, 143, 74, 0.5)',
-            borderColor: 'rgba(47, 143, 74, 1)',
-            borderWidth: 1,
-            fill: type === 'line'
-          }]
-        },
-        options: { scales: { y: { beginAtZero: true } } }
-      });
+  function renderChart(canvasId, type, label, dataMap) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (chartInstances[canvasId]) chartInstances[canvasId].destroy(); // aman ✅
+
+  chartInstances[canvasId] = new Chart(ctx, {
+    type,
+    data: {
+      labels: Object.keys(dataMap),
+      datasets: [{
+        label,
+        data: Object.values(dataMap),
+        backgroundColor: 'rgba(47, 143, 74, 0.5)',
+        borderColor: 'rgba(47, 143, 74, 1)',
+        borderWidth: 1,
+        fill: type === 'line'
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true }
+      }
     }
+  });
+}
+
 
     window.addEventListener('load', renderDashboard);
   </script>
