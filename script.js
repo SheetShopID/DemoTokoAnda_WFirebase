@@ -369,26 +369,74 @@ const ProductManager = (() => {
 /******************************
  * CHECKOUT MANAGER
  ******************************/
+
 const CheckoutManager = (() => {
+  // 🔹 Buat elemen loading overlay (sekali saja)
+  const createLoadingOverlay = () => {
+    let loader = document.getElementById("checkoutLoading");
+    if (!loader) {
+      loader = document.createElement("div");
+      loader.id = "checkoutLoading";
+      loader.innerHTML = `
+        <div class="loader-overlay">
+          <div class="loader-box">
+            <div class="spinner"></div>
+            <div>Pesanan sedang diproses...</div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(loader);
+    }
+    loader.style.display = "flex";
+  };
+
+  const hideLoadingOverlay = () => {
+    const loader = document.getElementById("checkoutLoading");
+    if (loader) loader.style.display = "none";
+  };
+
+  // 🔹 Fungsi utama checkout
   const checkout = async () => {
     const cartData = Storage.getCart();
-    if (!cartData || Object.keys(cartData).length === 0) { alert("Keranjang masih kosong!"); return; }
+    if (!cartData || Object.keys(cartData).length === 0) {
+      alert("Keranjang masih kosong!");
+      return;
+    }
 
     const profile = ProfileManager.getCurrentProfile();
-    if (!profile) { alert("Profil belum dipilih!"); return; }
+    if (!profile) {
+      alert("Profil belum dipilih!");
+      return;
+    }
 
     const sheetId = Utils.extractSheetId(profile.sheet);
     const items = Object.values(cartData);
     const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
-    const orderData = { sheetId, profileName: profile.name, wa: profile.wa, items, total, timestamp: new Date().toISOString() };
+    const orderData = {
+      sheetId,
+      profileName: profile.name,
+      wa: profile.wa,
+      items,
+      total,
+      timestamp: new Date().toISOString()
+    };
 
     try {
+      // 🕓 Tampilkan loading
+      createLoadingOverlay();
+
+      // Simpan ke Firebase
       const newOrderRef = db.ref("orders").push();
       await newOrderRef.set(orderData);
       console.log("✅ Order tersimpan di Firebase:", newOrderRef.key);
-      localStorage.removeItem(Storage.KEYS.CART);
 
+      // Bersihkan data
+      localStorage.removeItem(Storage.KEYS.CART);
+      CartManager.clearCart();
+      CartManager.minimizeCart();
+
+      // 🚀 Kirim ke WhatsApp
       const msg = [
         "Halo, saya mau titip:",
         ...items.map(i => `- ${i.name} (${i.qty}x Rp${i.price.toLocaleString()})`),
@@ -398,14 +446,47 @@ const CheckoutManager = (() => {
         "_Silakan konfirmasi pembayaran setelah pesan dikirim._"
       ].join("\n");
       window.open(`https://wa.me/${profile.wa}?text=${encodeURIComponent(msg)}`, "_blank");
-      alert("✅ Pesanan terkirim & disimpan di Firebase!");
+
+      // ✅ Notifikasi sukses
+      showToast("✅ Pesanan telah diterima dan disimpan!");
     } catch (err) {
       console.error("❌ Gagal menyimpan ke Firebase:", err);
       alert("❌ Pesanan gagal disimpan ke Firebase.");
+    } finally {
+      hideLoadingOverlay();
     }
   };
+
+  // 🔹 Toast helper
+  const showToast = (msg) => {
+    const toast = document.createElement("div");
+    toast.className = "toast-success";
+    toast.textContent = msg;
+    Object.assign(toast.style, {
+      position: "fixed",
+      bottom: "80px",
+      right: "20px",
+      background: "var(--accent)",
+      color: "#fff",
+      padding: "10px 16px",
+      borderRadius: "8px",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+      fontSize: "14px",
+      zIndex: "9999",
+      opacity: "0",
+      transition: "opacity .3s ease"
+    });
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => (toast.style.opacity = "1"));
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => toast.remove(), 500);
+    }, 3000);
+  };
+
   return { checkout };
 })();
+
 
 /******************************
  * INIT
