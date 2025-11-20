@@ -26,6 +26,7 @@ const Storage = (() => {
     CART: 'jastip_cart'
   };
 
+  const clearCart = () => localStorage.removeItem(KEYS.CART);
   const getProfiles = () => JSON.parse(localStorage.getItem(KEYS.PROFILES) || '[]');
   const saveProfiles = profiles => localStorage.setItem(KEYS.PROFILES, JSON.stringify(profiles));
   const getCurrentProfileId = () => localStorage.getItem(KEYS.CURRENT) || null;
@@ -33,7 +34,7 @@ const Storage = (() => {
   const getCart = () => JSON.parse(localStorage.getItem(KEYS.CART) || '{}');
   const saveCart = cart => localStorage.setItem(KEYS.CART, JSON.stringify(cart));
 
-  return { KEYS, getProfiles, saveProfiles, getCurrentProfileId, setCurrentProfileId, getCart, saveCart };
+  return { KEYS, getProfiles, saveProfiles, getCurrentProfileId, setCurrentProfileId, getCart, saveCart, clearCart };
 })();
 
 let profiles = Storage.getProfiles();
