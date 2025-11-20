@@ -231,6 +231,64 @@ const CartManager = (() => {
   return { addToCart, changeQty, removeItem, toggleCart, openCart, minimizeCart, updateCartCount, renderCart };
 })();
 
+const saveProfile = () => {
+  const name = document.getElementById('inputNama').value.trim();
+  const desc = document.getElementById('inputDeskripsi').value.trim();
+  const wa = document.getElementById('inputWA').value.trim();
+  const sheet = document.getElementById('inputSheet').value.trim();
+  const accent = document.getElementById('inputAccent').value;
+  const bg = document.getElementById('inputBg').value;
+  const card = document.getElementById('inputCard').value;
+  const logoData = document.getElementById('setupModal').dataset.logoData || null;
+
+  if (!name || !desc || !wa || !sheet) {
+    alert('❌ Semua field (Nama, Deskripsi, WA, Sheet) wajib diisi.');
+    return;
+  }
+  if (!sheet.includes('/spreadsheets/d/') || !sheet.includes('export?format=csv')) {
+    alert('❌ Link Google Sheet tidak valid. Pastikan berformat export?format=csv');
+    return;
+  }
+
+  let profile = currentProfileId
+    ? profiles.find(p => p.id === currentProfileId)
+    : null;
+
+  if (profile) {
+    // Update existing
+    profile.name = name;
+    profile.desc = desc;
+    profile.wa = wa;
+    profile.sheet = sheet;
+    profile.theme = { accent, bg, card };
+    if (logoData) profile.logo = logoData;
+  } else {
+    // Create new
+    profile = {
+      id: Utils.uid(),
+      name,
+      desc,
+      wa,
+      sheet,
+      theme: { accent, bg, card },
+      logo: logoData || null,
+      created: Date.now()
+    };
+    profiles.push(profile);
+    ProfileManager.setCurrentProfile(profile.id);
+  }
+
+  Storage.saveProfiles(profiles);
+  ProfileManager.applySetup(profile);
+  ProfileManager.renderProfilesList();
+  ProfileManager.closeSetupModal();
+  ProductManager.loadProducts();
+
+  delete document.getElementById('setupModal').dataset.logoData;
+  alert('✅ Profil berhasil disimpan!');
+};
+
+
 /******************************
  * PRODUCT MANAGER
  ******************************/
@@ -376,6 +434,7 @@ window.CheckoutManager = CheckoutManager;
 /******************************
  * BACKWARD COMPATIBILITY
  ******************************/
+window.saveProfile = ProfileManager.saveProfile;
 window.nextStep = Wizard.nextStep;
 window.prevStep = Wizard.prevStep;
 window.checkout = CheckoutManager.checkout;
@@ -383,4 +442,6 @@ window.openSetupModal = ProfileManager.openSetupModal;
 window.closeSetupModal = ProfileManager.closeSetupModal;
 window.addToCart = CartManager.addToCart;
 window.toggleCart = CartManager.toggleCart;
+window.changeQty = CartManager.changeQty;
+window.removeItem = CartManager.removeItem;
 
