@@ -433,8 +433,8 @@ const CheckoutManager = (() => {
 
       // Bersihkan data
       localStorage.removeItem(Storage.KEYS.CART);
-      CartManager.clearCart();
-      CartManager.minimizeCart();
+      //CartManager.clearCart();
+      //CartManager.minimizeCart();
 
       // 🚀 Kirim ke WhatsApp
       const msg = [
