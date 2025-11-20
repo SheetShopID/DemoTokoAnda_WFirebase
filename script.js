@@ -372,3 +372,15 @@ window.CartManager = CartManager;
 window.ProductManager = ProductManager;
 window.Wizard = Wizard;
 window.CheckoutManager = CheckoutManager;
+
+/******************************
+ * BACKWARD COMPATIBILITY
+ ******************************/
+window.nextStep = Wizard.nextStep;
+window.prevStep = Wizard.prevStep;
+window.checkout = CheckoutManager.checkout;
+window.openSetupModal = ProfileManager.openSetupModal;
+window.closeSetupModal = ProfileManager.closeSetupModal;
+window.addToCart = CartManager.addToCart;
+window.toggleCart = CartManager.toggleCart;
+
