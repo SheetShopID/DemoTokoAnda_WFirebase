@@ -1,121 +1,151 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard Onlineshop (Mini)</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-  body { font-family: Arial, sans-serif; background: #f7f9fc; margin: 0; padding: 20px; }
-  h1 { font-size: 1.5rem; margin-bottom: 1rem; }
-  .cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-  .card { flex: 1; min-width: 150px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-  .card h2 { margin: 0 0 5px 0; font-size: 1rem; }
-  .card p { margin: 0; font-size: 0.85rem; color: #555; }
-  canvas { background: #fff; border-radius: 8px; padding: 10px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-  th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
-  th { background: #f0f0f0; }
-  .refresh { float: right; margin-bottom: 1rem; padding: 5px 10px; border: none; background: #007bff; color: #fff; border-radius: 5px; cursor: pointer; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Penjualan Jastip</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background:#f7f9f8; margin:0; padding:20px; }
+    h1 { color:#2f8f4a; }
+    .dashboard-container { display:grid; grid-template-columns: repeat(auto-fit,minmax(350px,1fr)); gap:20px; }
+    .card { background:white; border-radius:16px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05); }
+    .card h2 { font-size:18px; margin-bottom:10px; color:#333; }
+    #totalSales { font-size:28px; font-weight:bold; color:#2f8f4a; }
+    select { padding:8px 12px; border-radius:8px; border:1px solid #ccc; }
+  </style>
 </head>
 <body>
-
-<h1>Dashboard Onlineshop (Mini)
-  <button class="refresh" onclick="loadDashboard()">Refresh</button>
-</h1>
-
-<div class="cards">
-  <div class="card">
-    <h2 id="totalRevenue">0</h2>
-    <p>Total Revenue</p>
+  <h1>📊 Dashboard Penjualan Jastip</h1>
+  <div style="margin-bottom:15px;">
+    Filter Profil: <select id="profileFilter"></select>
   </div>
-  <div class="card">
-    <h2 id="totalOrders">0</h2>
-    <p>Total Orders</p>
+  <div class="dashboard-container">
+    <div class="card">
+      <h2>Total Penjualan</h2>
+      <div id="totalSales">Rp0</div>
+    </div>
+    <div class="card">
+      <h2>Top Produk Terlaris</h2>
+      <canvas id="salesPerProductChart" height="200"></canvas>
+    </div>
+    <div class="card">
+      <h2>Tren Penjualan Harian</h2>
+      <canvas id="dailyTrendsChart" height="200"></canvas>
+    </div>
+    <div class="card">
+      <h2>Top Profil Penjualan</h2>
+      <canvas id="salesPerProfileChart" height="200"></canvas>
+    </div>
   </div>
-  <div class="card">
-    <h2 id="unitsSold">0</h2>
-    <p>Units Sold</p>
-  </div>
-</div>
 
-<h3>Top Products</h3>
-<canvas id="topProductsChart" height="150"></canvas>
+  <script> 
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBSJ-CWTC9TjSGL9b5hiSWRmttH-F-M2bM",
+    authDomain: "ordersheetshopid.firebaseapp.com",
+    databaseURL: "https://ordersheetshopid-default-rtdb.firebaseio.com",
+    projectId: "ordersheetshopid",
+    storageBucket: "ordersheetshopid.firebasestorage.app",
+    messagingSenderId: "894838941192",
+    appId: "1:894838941192:web:19008782f9bf5df25e13bd",
+    measurementId: "G-5JT743CJ1V"
+  };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-<h3>Peringatan Ketersediaan Barang</h3>
-<table>
-  <thead>
-    <tr>
-      <th>Produk</th>
-      <th>Stock</th>
-    </tr>
-  </thead>
-  <tbody id="stockAlertsBody">
-  </tbody>
-</table>
+    // 🔹 Dashboard Manager
+    const OrderDashboardManager = (() => {
+      const orders = [];
 
-<script>
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzlk7s5K_PLw-LS7rjBr7UBBOTXLF7dpLbmIHO83D4EmBhpkQeyEzjXy9ufOGIyrpX1Ug/exec?dashboard=true";
+      const fetchOrders = async () => {
+        const snapshot = await db.ref('orders').once('value');
+        orders.length = 0;
+        snapshot.forEach(snap => {
+          const data = snap.val();
+          data.id = snap.key;
+          orders.push(data);
+        });
+        return orders;
+      };
 
-let chart;
+      const getTotalSales = filtered => filtered.reduce((sum, o) => sum + (o.total || 0), 0);
 
-async function loadDashboard() {
-  try {
-    const res = await fetch(WEBAPP_URL);
-    const json = await res.json();
+      const getOrdersPerProfile = filtered => {
+        const map = {};
+        filtered.forEach(o => { map[o.profileName] = (map[o.profileName] || 0) + o.total; });
+        return map;
+      };
 
-    if (json.status !== "OK") {
-      alert("Gagal ambil data dashboard: " + json.message);
-      return;
+      const getSalesPerProduct = filtered => {
+        const map = {};
+        filtered.forEach(o => o.items.forEach(i => {
+          map[i.name] = (map[i.name] || 0) + i.qty;
+        }));
+        return map;
+      };
+
+      const getDailyTrends = filtered => {
+        const map = {};
+        filtered.forEach(o => {
+          const day = new Date(o.timestamp).toISOString().slice(0, 10);
+          map[day] = (map[day] || 0) + o.total;
+        });
+        return map;
+      };
+
+      return { fetchOrders, getTotalSales, getOrdersPerProfile, getSalesPerProduct, getDailyTrends, orders };
+    })();
+
+    // 🔹 Render Dashboard
+    async function renderDashboard() {
+      const allOrders = await OrderDashboardManager.fetchOrders();
+
+      const profiles = [...new Set(allOrders.map(o => o.profileName))];
+      const profileSelect = document.getElementById('profileFilter');
+      profileSelect.innerHTML = `<option value="">Semua Profil</option>` +
+        profiles.map(p => `<option value="${p}">${p}</option>`).join('');
+
+      const applyFilter = () => {
+        const filterVal = profileSelect.value;
+        const filtered = filterVal ? allOrders.filter(o => o.profileName === filterVal) : allOrders;
+
+        document.getElementById('totalSales').textContent =
+          'Rp' + OrderDashboardManager.getTotalSales(filtered).toLocaleString();
+
+        renderChart('salesPerProductChart', 'bar', 'Produk Terlaris', OrderDashboardManager.getSalesPerProduct(filtered));
+        renderChart('dailyTrendsChart', 'line', 'Tren Harian', OrderDashboardManager.getDailyTrends(filtered));
+        renderChart('salesPerProfileChart', 'bar', 'Penjualan per Profil', OrderDashboardManager.getOrdersPerProfile(filtered));
+      };
+
+      profileSelect.addEventListener('change', applyFilter);
+      applyFilter();
     }
 
-    const data = json.data;
-    document.getElementById("totalRevenue").textContent = "Rp " + data.totalRevenue.toLocaleString();
-    document.getElementById("totalOrders").textContent = data.totalOrders;
-    document.getElementById("unitsSold").textContent = data.unitsSold;
-
-    // Top Products Chart
-    const ctx = document.getElementById("topProductsChart").getContext("2d");
-    if (chart) chart.destroy();
-    chart = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels: data.topProducts.map(p => p.name),
-        datasets: [{
-          label: "Units Sold",
-          data: data.topProducts.map(p => p.qty),
-          backgroundColor: "rgba(54, 162, 235, 0.7)"
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          title: { display: false }
+    // 🔹 Helper: Render Chart
+    function renderChart(canvasId, type, label, dataMap) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      if (window[canvasId]) window[canvasId].destroy(); // destroy existing
+      window[canvasId] = new Chart(ctx, {
+        type,
+        data: {
+          labels: Object.keys(dataMap),
+          datasets: [{
+            label,
+            data: Object.values(dataMap),
+            backgroundColor: 'rgba(47, 143, 74, 0.5)',
+            borderColor: 'rgba(47, 143, 74, 1)',
+            borderWidth: 1,
+            fill: type === 'line'
+          }]
         },
-        scales: { y: { beginAtZero: true } }
-      }
-    });
+        options: { scales: { y: { beginAtZero: true } } }
+      });
+    }
 
-    // Stock Alerts Table
-    const tbody = document.getElementById("stockAlertsBody");
-    tbody.innerHTML = "";
-    data.stockAlerts.forEach(item => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${item.name}</td><td>${item.stock}</td>`;
-      tbody.appendChild(tr);
-    });
-
-  } catch (err) {
-    console.error("❌ Load dashboard error:", err);
-    alert("Gagal memuat dashboard.");
-  }
-}
-
-// Load saat pertama buka
-loadDashboard();
-</script>
-
+    window.addEventListener('load', renderDashboard);
+  </script>
 </body>
 </html>
