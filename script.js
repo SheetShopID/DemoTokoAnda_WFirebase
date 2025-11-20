@@ -592,6 +592,7 @@ async function checkout(cart, profile) {
 // contoh pemanggilan (kamu tinggal panggil di kode kamu)
 window.runCheckout = () => {
   const cart = JSON.parse(localStorage.getItem("jastip_cart") || "{}");
+  console.log(cart);
   const profile = {
     name: localStorage.getItem("jastip_profile_name"),
     wa: localStorage.getItem("jastip_profile_wa"),
