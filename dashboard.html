@@ -1,159 +1,169 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Penjualan Jastip</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; background:#f7f9f8; margin:0; padding:20px; }
-    h1 { color:#2f8f4a; }
-    .dashboard-container { display:grid; grid-template-columns: repeat(auto-fit,minmax(350px,1fr)); gap:20px; }
-    .card { background:white; border-radius:16px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05); }
-    .card h2 { font-size:18px; margin-bottom:10px; color:#333; }
-    #totalSales { font-size:28px; font-weight:bold; color:#2f8f4a; }
-    select { padding:8px 12px; border-radius:8px; border:1px solid #ccc; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Admin Demo Toko</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --accent: #2f8f4a;
+    --bg: #f7f9f8;
+    --card: #fff;
+    --text: #333;
+  }
+  body { margin:0; font-family:sans-serif; background:var(--bg); color:var(--text);}
+  header { padding:10px 20px; background:var(--accent); color:#fff; display:flex; justify-content:space-between; align-items:center;}
+  header h1 { margin:0; font-size:1.2rem;}
+  header button { background:#fff;color:var(--accent); border:none;padding:5px 10px;border-radius:5px; cursor:pointer;}
+  main { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:15px; padding:15px;}
+  .card { background:var(--card); border-radius:8px; padding:15px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+  .card h2 { margin-top:0; font-size:1rem; margin-bottom:10px;}
+  canvas { width:100% !important; height:250px !important;}
+  .list { max-height:300px; overflow-y:auto; }
+  .list-item { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #eee;}
+  .low-stock { color:red; font-weight:bold;}
+  .toast { position:fixed; bottom:80px; right:20px; background:var(--accent); color:#fff; padding:10px 16px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-size:14px; z-index:9999; opacity:0; transition:opacity .3s ease; }
+  @media(max-width:600px){ main { grid-template-columns:1fr; } }
+</style>
 </head>
 <body>
-  <h1>📊 Dashboard Penjualan Jastip</h1>
-  <div style="margin-bottom:15px;">
-    Filter Profil: <select id="profileFilter"></select>
-  </div>
-  <div class="dashboard-container">
-    <div class="card">
-      <h2>Total Penjualan</h2>
-      <div id="totalSales">Rp0</div>
-    </div>
-    <div class="card">
-      <h2>Top Produk Terlaris</h2>
-      <canvas id="salesPerProductChart" height="200"></canvas>
-    </div>
-    <div class="card">
-      <h2>Tren Penjualan Harian</h2>
-      <canvas id="dailyTrendsChart" height="200"></canvas>
-    </div>
-    <div class="card">
-      <h2>Top Profil Penjualan</h2>
-      <canvas id="salesPerProfileChart" height="200"></canvas>
-    </div>
-  </div>
 
-  <script> 
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+<header>
+  <h1>Smart Jastip Dashboard</h1>
+  <button id="toggleDark">Dark Mode</button>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Pesanan Terbaru</h2>
+    <div id="ordersList" class="list">Memuat...</div>
+  </div>
+  <div class="card">
+    <h2>Top Produk</h2>
+    <canvas id="topProductsChart"></canvas>
+  </div>
+  <div class="card">
+    <h2>Tren Penjualan (Rp)</h2>
+    <canvas id="salesTrendChart"></canvas>
+  </div>
+  <div class="card">
+    <h2>Stok Menipis</h2>
+    <div id="lowStockList" class="list">Memuat...</div>
+  </div>
+</main>
+
+<script>
+  // ====== FIREBASE CONFIG ======
   const firebaseConfig = {
-    apiKey: "AIzaSyBSJ-CWTC9TjSGL9b5hiSWRmttH-F-M2bM",
-    authDomain: "ordersheetshopid.firebaseapp.com",
-    databaseURL: "https://ordersheetshopid-default-rtdb.firebaseio.com",
-    projectId: "ordersheetshopid",
-    storageBucket: "ordersheetshopid.firebasestorage.app",
-    messagingSenderId: "894838941192",
-    appId: "1:894838941192:web:19008782f9bf5df25e13bd",
-    measurementId: "G-5JT743CJ1V"
+  apiKey: "AIzaSyBSJ-CWTC9TjSGL9b5hiSWRmttH-F-M2bM",
+  authDomain: "ordersheetshopid.firebaseapp.com",
+  databaseURL: "https://ordersheetshopid-default-rtdb.firebaseio.com",
+  projectId: "ordersheetshopid",
+  storageBucket: "ordersheetshopid.firebasestorage.app",
+  messagingSenderId: "894838941192",
+  appId: "1:894838941192:web:19008782f9bf5df25e13bd",
+  measurementId: "G-5JT743CJ1V"
+};
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // ====== STATE ======
+  let orders = [];
+  let products = {}; // {name:{price, stock, qty}}
+
+  // ====== DOM ======
+  const ordersList = document.getElementById("ordersList");
+  const lowStockList = document.getElementById("lowStockList");
+  const topProductsChartEl = document.getElementById("topProductsChart");
+  const salesTrendChartEl = document.getElementById("salesTrendChart");
+
+  // ====== CHARTS ======
+  let topProductsChart, salesTrendChart;
+
+  const renderChart = (canvas, type, labels, data, options={})=>{
+    if(canvas.chart){ canvas.chart.destroy(); }
+    canvas.chart = new Chart(canvas, {
+      type,
+      data:{ labels, datasets:[{ label:'Jumlah', data, backgroundColor:'#2f8f4a' }] },
+      options: { responsive:true, ...options }
+    });
   };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
 
-    // 🔹 Dashboard Manager
-    const OrderDashboardManager = (() => {
-      const orders = [];
+  // ====== TOAST ======
+  const showToast = msg=>{
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    requestAnimationFrame(()=>toast.style.opacity="1");
+    setTimeout(()=>{ toast.style.opacity="0"; setTimeout(()=>toast.remove(),500); },3000);
+  };
 
-      const fetchOrders = async () => {
-        const snapshot = await db.ref('orders').once('value');
-        orders.length = 0;
-        snapshot.forEach(snap => {
-          const data = snap.val();
-          data.id = snap.key;
-          orders.push(data);
-        });
-        return orders;
-      };
+  // ====== DARK MODE ======
+  const toggleDark = ()=>{
+    document.body.style.background = document.body.style.background==='#333'?'var(--bg)':'#333';
+    document.body.style.color = document.body.style.color==='#fff'?'#333':'#fff';
+  };
+  document.getElementById('toggleDark').addEventListener('click',toggleDark);
 
-      const getTotalSales = filtered => filtered.reduce((sum, o) => sum + (o.total || 0), 0);
+  // ====== HELPER ======
+  const updateLowStock = ()=>{
+    const low = Object.values(products).filter(p=>p.stock<=3);
+    lowStockList.innerHTML = low.length? low.map(p=>`<div class="list-item low-stock">${p.name} (stok ${p.stock})</div>`).join(''):'Tidak ada';
+  };
 
-      const getOrdersPerProfile = filtered => {
-        const map = {};
-        filtered.forEach(o => { map[o.profileName] = (map[o.profileName] || 0) + o.total; });
-        return map;
-      };
+  const updateCharts = ()=>{
+    const productQty = {};
+    const salesTrend = {};
+    orders.forEach(o=>{
+      o.items.forEach(i=>{
+        productQty[i.name] = (productQty[i.name]||0)+i.qty;
+        const day = new Date(o.timestamp).toISOString().slice(0,10);
+        salesTrend[day] = (salesTrend[day]||0)+(i.qty*i.price);
+      });
+    });
 
-      const getSalesPerProduct = filtered => {
-        const map = {};
-        filtered.forEach(o => o.items.forEach(i => {
-          map[i.name] = (map[i.name] || 0) + i.qty;
-        }));
-        return map;
-      };
+    // Top Produk
+    const sorted = Object.entries(productQty).sort((a,b)=>b[1]-a[1]);
+    renderChart(topProductsChartEl,'bar',sorted.map(e=>e[0]),sorted.map(e=>e[1]));
 
-      const getDailyTrends = filtered => {
-        const map = {};
-        filtered.forEach(o => {
-          const day = new Date(o.timestamp).toISOString().slice(0, 10);
-          map[day] = (map[day] || 0) + o.total;
-        });
-        return map;
-      };
+    // Sales Trend
+    const days = Object.keys(salesTrend).sort();
+    renderChart(salesTrendChartEl,'line',days,days.map(d=>salesTrend[d]));
+  };
 
-      return { fetchOrders, getTotalSales, getOrdersPerProfile, getSalesPerProduct, getDailyTrends, orders };
-    })();
+  const updateOrdersList = ()=>{
+    ordersList.innerHTML = orders.length? orders.slice(-10).reverse().map(o=>{
+      const total = o.items.reduce((s,i)=>s+i.price*i.qty,0);
+      return `<div class="list-item">
+        <span>${o.profileName}</span>
+        <span>Rp${total.toLocaleString()}</span>
+      </div>`;
+    }).join(''):'Belum ada pesanan';
+  };
 
-    // 🔹 Render Dashboard
-    async function renderDashboard() {
-      const allOrders = await OrderDashboardManager.fetchOrders();
+  const addOrUpdateProduct = (item)=>{
+    if(!products[item.name]) products[item.name]={price:item.price,stock:10,qty:0};
+    products[item.name].qty += item.qty;
+  };
 
-      const profiles = [...new Set(allOrders.map(o => o.profileName))];
-      const profileSelect = document.getElementById('profileFilter');
-      profileSelect.innerHTML = `<option value="">Semua Profil</option>` +
-        profiles.map(p => `<option value="${p}">${p}</option>`).join('');
-
-      const applyFilter = () => {
-        const filterVal = profileSelect.value;
-        const filtered = filterVal ? allOrders.filter(o => o.profileName === filterVal) : allOrders;
-
-        document.getElementById('totalSales').textContent =
-          'Rp' + OrderDashboardManager.getTotalSales(filtered).toLocaleString();
-
-        renderChart('salesPerProductChart', 'bar', 'Produk Terlaris', OrderDashboardManager.getSalesPerProduct(filtered));
-        renderChart('dailyTrendsChart', 'line', 'Tren Harian', OrderDashboardManager.getDailyTrends(filtered));
-        renderChart('salesPerProfileChart', 'bar', 'Penjualan per Profil', OrderDashboardManager.getOrdersPerProfile(filtered));
-      };
-
-      profileSelect.addEventListener('change', applyFilter);
-      applyFilter();
-    }
-    const chartInstances = {};
-
-    // 🔹 Helper: Render Chart
-  function renderChart(canvasId, type, label, dataMap) {
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  if (chartInstances[canvasId]) chartInstances[canvasId].destroy(); // aman ✅
-
-  chartInstances[canvasId] = new Chart(ctx, {
-    type,
-    data: {
-      labels: Object.keys(dataMap),
-      datasets: [{
-        label,
-        data: Object.values(dataMap),
-        backgroundColor: 'rgba(47, 143, 74, 0.5)',
-        borderColor: 'rgba(47, 143, 74, 1)',
-        borderWidth: 1,
-        fill: type === 'line'
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: { beginAtZero: true }
-      }
-    }
+  // ====== FIREBASE LISTENER ======
+  db.ref("orders").on("value",snapshot=>{
+    orders = [];
+    snapshot.forEach(snap=>{
+      const o = snap.val();
+      orders.push(o);
+      o.items.forEach(addOrUpdateProduct);
+    });
+    updateOrdersList();
+    updateLowStock();
+    updateCharts();
   });
-}
 
-
-    window.addEventListener('load', renderDashboard);
-  </script>
+</script>
 </body>
 </html>
