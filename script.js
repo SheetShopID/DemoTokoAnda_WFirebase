@@ -234,7 +234,14 @@ const CartManager = (() => {
   const toggleCart = () => { DOM.cartDrawer.classList.toggle('active'); renderCart(); };
   const openCart = () => { DOM.cartDrawer.classList.add('active'); renderCart(); };
   const minimizeCart = () => DOM.cartDrawer.classList.remove('active');
-
+ 
+  const clear = () => {
+    cart = {};                     // reset data di memori
+    Storage.saveCart(cart);        // simpan kosong ke localStorage
+    renderCart();                  // render ulang tampilan
+    updateCartCount();             // perbarui badge jumlah
+  };
+  
   return { addToCart, changeQty, removeItem, toggleCart, openCart, minimizeCart, updateCartCount, renderCart, clear };
 })();
 
