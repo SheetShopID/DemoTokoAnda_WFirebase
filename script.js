@@ -1,21 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getDatabase, ref, push, set, get, child } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
-
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyBSJ-CWTC9TjSGL9b5hiSWRmttH-F-M2bM",
-  authDomain: "ordersheetshopid.firebaseapp.com",
-  databaseURL: "https://ordersheetshopid-default-rtdb.firebaseio.com",
-  projectId: "ordersheetshopid",
-  storageBucket: "ordersheetshopid.firebasestorage.app",
-  messagingSenderId: "894838941192",
-  appId: "1:894838941192:web:19008782f9bf5df25e13bd",
-  measurementId: "G-5JT743CJ1V"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-/**
+ /**
  * Ambil ID sheet dari link export CSV
  * Contoh: https://docs.google.com/spreadsheets/d/abcd123/export?format=csv
  */
