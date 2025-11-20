@@ -1,4 +1,28 @@
- /**
+// 🔥=== FIREBASE SETUP (tambahkan di baris paling atas) ===🔥
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import { getDatabase, ref, push, set, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+
+// Konfigurasi dari Firebase Console (Project Settings → Web SDK)
+const firebaseConfig = {
+  apiKey: "AIzaSyBSJ-CWTC9TjSGL9b5hiSWRmttH-F-M2bM",
+  authDomain: "ordersheetshopid.firebaseapp.com",
+  databaseURL: "https://ordersheetshopid-default-rtdb.firebaseio.com",
+  projectId: "ordersheetshopid",
+  storageBucket: "ordersheetshopid.firebasestorage.app",
+  messagingSenderId: "894838941192",
+  appId: "1:894838941192:web:19008782f9bf5df25e13bd",
+  measurementId: "G-5JT743CJ1V"
+};
+
+// Inisialisasi Firebase App dan Database
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+console.log("✅ Firebase Connected:", app.name);
+
+// 🔥=== AKHIR SETUP FIREBASE ===🔥
+
+/**
  * Ambil ID sheet dari link export CSV
  * Contoh: https://docs.google.com/spreadsheets/d/abcd123/export?format=csv
  */
@@ -532,6 +556,26 @@ function minimizeCart() {
   drawer.classList.remove('active'); // hide drawer
 }
 
+/**
+ * Daftarkan user (sheet) ke Firebase jika belum ada
+ */
+async function registerUser(profile) {
+  const sheetId = extractSheetId(profile.sheet);
+  const userRef = ref(db, `users/${sheetId}`);
+  const snap = await get(userRef);
+
+  if (!snap.exists()) {
+    await set(userRef, {
+      sheetUrl: profile.sheet,
+      wa: profile.wa,
+      profileName: profile.name,
+      createdAt: new Date().toISOString()
+    });
+    console.log("🟢 User baru terdaftar di Firebase:", profile.name);
+  }
+  return sheetId;
+}
+
 /******************************
  * CHECKOUT FUNCTION — Terhubung ke Google Sheet
  ******************************/
@@ -545,7 +589,7 @@ function minimizeCart() {
   const items = Object.values(cart);
   const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
-  // siapkan data order
+  // data order
   const orderData = {
     sheetId,
     profileName: profile.name,
@@ -559,12 +603,12 @@ function minimizeCart() {
   const ordersRef = ref(db, "orders");
   const newOrder = push(ordersRef);
   await set(newOrder, orderData);
-  console.log("✅ Order tersimpan:", newOrder.key);
+  console.log("✅ Order tersimpan di Firebase:", newOrder.key);
 
-  // reset keranjang
+  // kosongkan cart
   localStorage.removeItem("jastip_cart");
 
-  // kirim ke WhatsApp
+  // kirim ke WA
   const msg = [
     "Halo, saya mau titip:",
     ...items.map(i => `- ${i.name} (${i.qty}x Rp${i.price.toLocaleString()})`),
