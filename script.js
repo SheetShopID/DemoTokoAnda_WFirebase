@@ -1,3 +1,29 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import { getDatabase, ref, push, set, get, child } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBSJ-CWTC9TjSGL9b5hiSWRmttH-F-M2bM",
+  authDomain: "ordersheetshopid.firebaseapp.com",
+  databaseURL: "https://ordersheetshopid-default-rtdb.firebaseio.com",
+  projectId: "ordersheetshopid",
+  storageBucket: "ordersheetshopid.firebasestorage.app",
+  messagingSenderId: "894838941192",
+  appId: "1:894838941192:web:19008782f9bf5df25e13bd",
+  measurementId: "G-5JT743CJ1V"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+/**
+ * Ambil ID sheet dari link export CSV
+ * Contoh: https://docs.google.com/spreadsheets/d/abcd123/export?format=csv
+ */
+function extractSheetId(sheetUrl) {
+  const m = sheetUrl.match(/\/spreadsheets\/d\/([^/]+)/);
+  return m ? m[1] : null;
+}
+
 /******************************
  * STORAGE KEYS & STATE
  ******************************/
@@ -526,157 +552,60 @@ function minimizeCart() {
 /******************************
  * CHECKOUT FUNCTION — Terhubung ke Google Sheet
  ******************************/
-/*
-async function checkout() {
+ async function checkout(cart, profile) {
+  if (!cart || Object.keys(cart).length === 0) {
+    alert("Keranjang masih kosong!");
+    return;
+  }
+
+  const sheetId = await registerUser(profile);
   const items = Object.values(cart);
-  if (items.length === 0) {
-    alert('Keranjang kosong!');
-    return;
-  }
+  const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
-  const profile = getCurrentProfile();
-  const waNumber = profile ? profile.wa : '';
-  if (!waNumber) {
-    alert('Nomor WhatsApp belum diatur di profil.');
-    return;
-  }
-
-  // Hitung total
-  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-
-  // Siapkan pesan WhatsApp
-  const msgLines = items.map(i => `- ${i.name} (${i.qty}x ${formatRp(i.price)})`);
-  const msg = [
-    "Halo, saya mau titip:",
-    ...msgLines,
-    "",
-    `Total: ${formatRp(total)}`,
-    "",
-    "_Silakan konfirmasi pembayaran setelah pesan dikirim._"
-  ].join("\n");
-
-  // Buka WhatsApp
-  window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, '_blank');
-
-  // === Siapkan data untuk Google Sheet ===
+  // siapkan data order
   const orderData = {
+    sheetId,
+    profileName: profile.name,
+    wa: profile.wa,
     items,
     total,
-    profileName: profile.name,
-    profileWA: profile.wa
+    timestamp: new Date().toISOString()
   };
 
-  // Ganti dengan URL Web App kamu
-  //const ORDER_API_URL = "https://script.google.com/macros/s/AKfycbzqs8y4b5AE3DVfMMMCO7MnOLh0xf543D7KKNQuEjjerVTBErk8E1k1VlfS62EBTaue/exec";
-  const ORDER_API_URL = "https://script.google.com/macros/s/AKfycbwmf_4LVVdMtNkyt9sg32jFe7zYLX8ihV9dPYZktjaBKw5oY9j9dJWWysZ4Z-w13Sy9bw/exec";
-  // Encode ke URL parameter (GET)
-  const url = ORDER_API_URL + "?data=" + encodeURIComponent(JSON.stringify(orderData));
+  // kirim ke Firebase
+  const ordersRef = ref(db, "orders");
+  const newOrder = push(ordersRef);
+  await set(newOrder, orderData);
+  console.log("✅ Order tersimpan:", newOrder.key);
 
-  try {
-    const res = await fetch(url);
-    const json = await res.json();
-    console.log("Response:", json);
+  // reset keranjang
+  localStorage.removeItem("jastip_cart");
 
-    if (json.status === "OK") {
-      // Bersihkan cart setelah sukses
-      cart = {};
-      localStorage.removeItem("jastip_cart");
-      updateCartCount();
-      renderCart();
-      document.getElementById('cartdrawer').classList.remove('active');
-
-      // Notifikasi sukses
-      const toast = document.createElement("div");
-      toast.textContent = "✅ Pesanan berhasil dikirim & disimpan!";
-      toast.style.position = "fixed";
-      toast.style.bottom = "80px";
-      toast.style.right = "20px";
-      toast.style.background = "var(--accent)";
-      toast.style.color = "#fff";
-      toast.style.padding = "10px 16px";
-      toast.style.borderRadius = "8px";
-      toast.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-      toast.style.fontSize = "14px";
-      toast.style.zIndex = "9999";
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    } else {
-      alert("⚠️ Gagal menyimpan pesanan: " + json.message);
-    }
-
-  } catch (err) {
-    console.error("❌ Fetch error:", err);
-    alert("❌ Pesanan terkirim ke WhatsApp, tapi gagal disimpan ke Google Sheet.");
-  }
-}*/
-
-async function checkout() {
-  const items = Object.values(cart);
-  if (items.length === 0) {
-    alert('Keranjang kosong!');
-    return;
-  }
-
-  const profile = getCurrentProfile();
-  const waNumber = profile ? profile.wa : '';
-  if (!waNumber) {
-    alert('Nomor WhatsApp belum diatur di profil.');
-    return;
-  }
-
-  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const msgLines = items.map(i => `- ${i.name} (${i.qty}x ${formatRp(i.price)})`);
+  // kirim ke WhatsApp
   const msg = [
     "Halo, saya mau titip:",
-    ...msgLines,
+    ...items.map(i => `- ${i.name} (${i.qty}x Rp${i.price.toLocaleString()})`),
     "",
-    `Total: ${formatRp(total)}`,
+    `Total: Rp${total.toLocaleString()}`,
     "",
     "_Silakan konfirmasi pembayaran setelah pesan dikirim._"
   ].join("\n");
 
-  window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, '_blank');
+  window.open(`https://wa.me/${profile.wa}?text=${encodeURIComponent(msg)}`, "_blank");
 
-  const orderData = { items, total, profileName: profile.name, profileWA: profile.wa };
-  const ORDER_API_URL = "https://script.google.com/macros/s/AKfycbxPTwPP744NJnBPeP2AoyyKdSyqio3DiDUdggmQ2ortmZUSSG_CkEXE0-eqLNX-kxOr3g/exec";
-  const url = ORDER_API_URL + "?data=" + encodeURIComponent(JSON.stringify(orderData));
-
-  try {
-    const res = await fetch(url);
-    const json = await res.json();
-    console.log("Response:", json);
-
-    if (json.status === "OK") {
-      cart = {};
-      localStorage.removeItem("jastip_cart");
-      updateCartCount();
-      renderCart();
-      document.getElementById('cartdrawer').classList.remove('active');
-
-      const toast = document.createElement("div");
-      toast.textContent = "✅ Pesanan tersimpan & stok berkurang!";
-      toast.style.position = "fixed";
-      toast.style.bottom = "80px";
-      toast.style.right = "20px";
-      toast.style.background = "var(--accent)";
-      toast.style.color = "#fff";
-      toast.style.padding = "10px 16px";
-      toast.style.borderRadius = "8px";
-      toast.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-      toast.style.fontSize = "14px";
-      toast.style.zIndex = "9999";
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    } else {
-      alert("⚠️ Gagal menyimpan pesanan: " + json.message);
-    }
-
-  } catch (err) {
-    console.error("❌ Fetch error:", err);
-    alert("❌ Pesanan terkirim ke WhatsApp, tapi gagal disimpan ke Google Sheet.");
-  }
+  alert("✅ Pesanan terkirim & disimpan di Firebase!");
 }
 
+// contoh pemanggilan (kamu tinggal panggil di kode kamu)
+window.runCheckout = () => {
+  const cart = JSON.parse(localStorage.getItem("jastip_cart") || "{}");
+  const profile = {
+    name: localStorage.getItem("jastip_profile_name"),
+    wa: localStorage.getItem("jastip_profile_wa"),
+    sheet: localStorage.getItem("jastip_profile_sheet")
+  };
+  checkout(cart, profile);
+};
 /******************************
  * INIT ON LOAD
  ******************************/
