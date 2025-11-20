@@ -453,7 +453,7 @@ const CheckoutManager = (() => {
 
       Storage.clearCart();          // hapus dari localStorage
       CartManager.clear();          // reset isi cart di memori dan UI
-      CartManager.minimize();       // tutup drawer      
+      CartManager.minimizeCart();      // tutup drawer      
 
       // 🚀 Kirim ke WhatsApp
       const msg = [
