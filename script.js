@@ -366,6 +366,31 @@ const ProductManager = (() => {
   return { loadProducts, populateCategories, renderProducts, filterCategory };
 })();
 
+
+const CartManager = (() => {
+  const clearCart = () => {
+    cart = {};
+    localStorage.removeItem("jastip_cart");
+    updateCartCount();
+    renderCart();
+  };
+
+  const minimizeCart = () => {
+    document.getElementById('cartdrawer').classList.remove('active');
+  };
+
+  return {
+    addToCart,
+    toggleCart,
+    changeQty,
+    removeItem,
+    updateCartCount,
+    renderCart,
+    clearCart,
+    minimizeCart
+  };
+})();
+
 /******************************
  * CHECKOUT MANAGER
  ******************************/
