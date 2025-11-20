@@ -444,4 +444,4 @@ window.addToCart = CartManager.addToCart;
 window.toggleCart = CartManager.toggleCart;
 window.changeQty = CartManager.changeQty;
 window.removeItem = CartManager.removeItem;
-
+window.minimizeCart = CartManager.minimizeCart;
