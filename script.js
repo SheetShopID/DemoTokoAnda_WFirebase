@@ -57,7 +57,7 @@ const DOM = {
 };
 
 /******************************
- * PROFILE MANAGEMENT
+ * PROFILE MANAGER
  ******************************/
 const ProfileManager = (() => {
   const getCurrentProfile = () => profiles.find(p => p.id === currentProfileId) || null;
@@ -171,7 +171,7 @@ const Wizard = (() => {
 })();
 
 /******************************
- * CART MANAGEMENT
+ * CART MANAGER
  ******************************/
 const CartManager = (() => {
   const updateCartCount = () => {
@@ -232,7 +232,7 @@ const CartManager = (() => {
 })();
 
 /******************************
- * PRODUCTS MANAGEMENT
+ * PRODUCT MANAGER
  ******************************/
 const ProductManager = (() => {
   const loadProducts = () => {
@@ -261,10 +261,7 @@ const ProductManager = (() => {
         populateCategories();
         renderProducts();
       })
-      .catch(err => {
-        console.error(err);
-        alert('Gagal memuat data dari Google Sheet.');
-      });
+      .catch(() => alert('Gagal memuat data dari Google Sheet.'));
   };
 
   const populateCategories = () => {
@@ -312,11 +309,16 @@ const ProductManager = (() => {
 })();
 
 /******************************
- * CHECKOUT
+ * CHECKOUT MANAGER
  ******************************/
 const CheckoutManager = (() => {
-  const checkout = async (cartData, profile) => {
+  const checkout = async () => {
+    const cartData = Storage.getCart();
     if (!cartData || Object.keys(cartData).length === 0) { alert("Keranjang masih kosong!"); return; }
+
+    const profile = ProfileManager.getCurrentProfile();
+    if (!profile) { alert("Profil belum dipilih!"); return; }
+
     const sheetId = Utils.extractSheetId(profile.sheet);
     const items = Object.values(cartData);
     const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
@@ -363,7 +365,7 @@ window.addEventListener('load', () => {
 });
 
 /******************************
- * EXPOSE GLOBAL FUNCTIONS
+ * GLOBAL EXPOSE
  ******************************/
 window.ProfileManager = ProfileManager;
 window.CartManager = CartManager;
