@@ -532,11 +532,15 @@ function minimizeCart() {
   drawer.classList.remove('active'); // hide drawer
 }
 
+const cart = JSON.parse(localStorage.getItem("jastip_cart") || "{}");
+  console.log(cart);
+  const profile = {
+    name: localStorage.getItem("jastip_profile_name"),
+    wa: localStorage.getItem("jastip_profile_wa"),
+    sheet: localStorage.getItem("jastip_profile_sheet")
+  };
 /******************************
  * CHECKOUT FUNCTION — Terhubung ke Google Sheet
- ******************************/
-/******************************
- * CHECKOUT TO FIREBASE (COMPAT VERSION)
  ******************************/
 async function checkout(cart, profile) {
   if (!cart || Object.keys(cart).length === 0) {
