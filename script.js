@@ -147,7 +147,14 @@ const ProfileManager = (() => {
     closeSetupModal();
     ProductManager.loadProducts();
   };
-
+  
+  const clear = () => {
+    cart = {};                     // reset data di memori
+    Storage.saveCart(cart);        // simpan kosong ke localStorage
+    renderCart();                  // render ulang tampilan
+    updateCartCount();             // perbarui badge jumlah
+  };
+  
   return { getCurrentProfile, setCurrentProfile, applySetup, openSetupModal, closeSetupModal, renderProfilesList, useProfile, fillFormWithProfile };
 })();
 
@@ -228,7 +235,7 @@ const CartManager = (() => {
   const openCart = () => { DOM.cartDrawer.classList.add('active'); renderCart(); };
   const minimizeCart = () => DOM.cartDrawer.classList.remove('active');
 
-  return { addToCart, changeQty, removeItem, toggleCart, openCart, minimizeCart, updateCartCount, renderCart };
+  return { addToCart, changeQty, removeItem, toggleCart, openCart, minimizeCart, updateCartCount, renderCart, clear };
 })();
 
 const saveProfile = () => {
@@ -432,9 +439,13 @@ const CheckoutManager = (() => {
       console.log("✅ Order tersimpan di Firebase:", newOrderRef.key);
 
       // Bersihkan data
-      localStorage.removeItem(Storage.KEYS.CART);
+      //localStorage.removeItem(Storage.KEYS.CART);
       //CartManager.clearCart();
       //CartManager.minimizeCart();
+
+      Storage.clearCart();          // hapus dari localStorage
+      CartManager.clear();          // reset isi cart di memori dan UI
+      CartManager.minimize();       // tutup drawer      
 
       // 🚀 Kirim ke WhatsApp
       const msg = [
