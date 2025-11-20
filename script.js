@@ -1,27 +1,3 @@
-// 🔥=== FIREBASE SETUP (tambahkan di baris paling atas) ===🔥
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getDatabase, ref, push, set, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
-
-// Konfigurasi dari Firebase Console (Project Settings → Web SDK)
-const firebaseConfig = {
-  apiKey: "AIzaSyBSJ-CWTC9TjSGL9b5hiSWRmttH-F-M2bM",
-  authDomain: "ordersheetshopid.firebaseapp.com",
-  databaseURL: "https://ordersheetshopid-default-rtdb.firebaseio.com",
-  projectId: "ordersheetshopid",
-  storageBucket: "ordersheetshopid.firebasestorage.app",
-  messagingSenderId: "894838941192",
-  appId: "1:894838941192:web:19008782f9bf5df25e13bd",
-  measurementId: "G-5JT743CJ1V"
-};
-
-// Inisialisasi Firebase App dan Database
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-console.log("✅ Firebase Connected:", app.name);
-
-// 🔥=== AKHIR SETUP FIREBASE ===🔥
-
 /**
  * Ambil ID sheet dari link export CSV
  * Contoh: https://docs.google.com/spreadsheets/d/abcd123/export?format=csv
@@ -556,40 +532,24 @@ function minimizeCart() {
   drawer.classList.remove('active'); // hide drawer
 }
 
-/**
- * Daftarkan user (sheet) ke Firebase jika belum ada
- */
-async function registerUser(profile) {
-  const sheetId = extractSheetId(profile.sheet);
-  const userRef = ref(db, `users/${sheetId}`);
-  const snap = await get(userRef);
-
-  if (!snap.exists()) {
-    await set(userRef, {
-      sheetUrl: profile.sheet,
-      wa: profile.wa,
-      profileName: profile.name,
-      createdAt: new Date().toISOString()
-    });
-    console.log("🟢 User baru terdaftar di Firebase:", profile.name);
-  }
-  return sheetId;
-}
-
 /******************************
  * CHECKOUT FUNCTION — Terhubung ke Google Sheet
  ******************************/
- async function checkout(cart, profile) {
+/******************************
+ * CHECKOUT TO FIREBASE (COMPAT VERSION)
+ ******************************/
+async function checkout(cart, profile) {
   if (!cart || Object.keys(cart).length === 0) {
     alert("Keranjang masih kosong!");
     return;
   }
 
-  const sheetId = await registerUser(profile);
+  // Ambil ID Sheet
+  const sheetId = extractSheetId(profile.sheet);
   const items = Object.values(cart);
   const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
-  // data order
+  // Siapkan data order
   const orderData = {
     sheetId,
     profileName: profile.name,
@@ -599,30 +559,36 @@ async function registerUser(profile) {
     timestamp: new Date().toISOString()
   };
 
-  // kirim ke Firebase
-  const ordersRef = ref(db, "orders");
-  const newOrder = push(ordersRef);
-  await set(newOrder, orderData);
-  console.log("✅ Order tersimpan di Firebase:", newOrder.key);
+  try {
+    // Simpan ke Firebase
+    const newOrderRef = db.ref("orders").push();
+    await newOrderRef.set(orderData);
+    console.log("✅ Order tersimpan di Firebase:", newOrderRef.key);
 
-  // kosongkan cart
-  localStorage.removeItem("jastip_cart");
+    // Kosongkan cart
+    localStorage.removeItem("jastip_cart");
 
-  // kirim ke WA
-  const msg = [
-    "Halo, saya mau titip:",
-    ...items.map(i => `- ${i.name} (${i.qty}x Rp${i.price.toLocaleString()})`),
-    "",
-    `Total: Rp${total.toLocaleString()}`,
-    "",
-    "_Silakan konfirmasi pembayaran setelah pesan dikirim._"
-  ].join("\n");
+    // Kirim ke WhatsApp
+    const msg = [
+      "Halo, saya mau titip:",
+      ...items.map(i => `- ${i.name} (${i.qty}x Rp${i.price.toLocaleString()})`),
+      "",
+      `Total: Rp${total.toLocaleString()}`,
+      "",
+      "_Silakan konfirmasi pembayaran setelah pesan dikirim._"
+    ].join("\n");
 
-  window.open(`https://wa.me/${profile.wa}?text=${encodeURIComponent(msg)}`, "_blank");
+    window.open(`https://wa.me/${profile.wa}?text=${encodeURIComponent(msg)}`, "_blank");
 
-  alert("✅ Pesanan terkirim & disimpan di Firebase!");
+    alert("✅ Pesanan terkirim & disimpan di Firebase!");
+  } catch (err) {
+    console.error("❌ Gagal menyimpan ke Firebase:", err);
+    alert("❌ Pesanan gagal disimpan ke Firebase.");
+  }
 }
+ 
 
+// END CHECKOUT
 // contoh pemanggilan (kamu tinggal panggil di kode kamu)
 window.runCheckout = () => {
   const cart = JSON.parse(localStorage.getItem("jastip_cart") || "{}");
